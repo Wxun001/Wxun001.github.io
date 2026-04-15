@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>桐花万里 · 辩题抽签</title>
+  <!-- 使用：把本文件上传到任意网站后，用浏览器打开链接即可。
+    · 默认先出现「入口页」，点「大屏抽签」或「管理员操控」。
+    · 嵌入 PPT 时一般会自动进入大屏；若未自动，请在链接后加 ?mode=display
+    · 仍支持书签：#display、#control
+内置数据：在脚本中搜索 LOTTERY_CONFIG。
+  -->
+  <style>
+    :root {
+      --rose: #A68079;
+      --rose-soft: rgba(166, 128, 121, 0.18);
+      --rose-line: rgba(166, 128, 121, 0.35);
+      --cream: #F7F4F0;
+      --card: #FDFCF9;
+      --ink: #4A3532;
+      --ink-muted: rgba(74, 53, 50, 0.55);
+      --egret: #E8E6E3;
+      --silver: #C5C2BE;
+      --gold: #B8956B;
+      --shadow: 0 18px 48px rgba(74, 53, 50, 0.08);
+      --font-display: "Songti SC", "STSong", "Noto Serif SC", "SimSun", serif;
+      --font-ui: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      background: var(--cream);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* 极简背景：桐花意 + 白鹭灰 */
+    .bg-veil {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 120% 80% at 50% -20%, var(--rose-soft), transparent 55%),
+        radial-gradient(ellipse 80% 60% at 100% 100%, rgba(232, 230, 227, 0.65), transparent 50%),
+        linear-gradient(180deg, var(--cream) 0%, #F3EEEA 100%);
+      z-index: 0;
+    }
+
+    .bg-veil::after {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border: 1px solid var(--rose-line);
+      border-radius: 2px;
+      opacity: 0.45;
+    }
+
+    .petal {
+      position: fixed;
+      width: 120px;
+      height: 120px;
+      border-radius: 60% 40% 55% 45%;
+      background: linear-gradient(135deg, rgba(166, 128, 121, 0.12), transparent);
+      filter: blur(1px);
+      z-index: 0;
+    }
+
+    .petal.p1 { top: 6%; left: 4%; transform: rotate(-18deg); }
+    .petal.p2 { bottom: 10%; right: 6%; width: 160px; height: 160px; transform: rotate(22deg); opacity: 0.7; }
+
+    .egret-mark {
+      position: fixed;
+      bottom: 8%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(420px, 70vw);
+      height: 40px;
+      opacity: 0.07;
+      z-index: 0;
+    }
+
+    .egret-mark svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .panel {
+      position: relative;
+      z-index: 1;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 20px 48px;
+    }
+
+    .brand {
+      font-family: var(--font-display);
+      font-size: clamp(0.75rem, 2.5vw, 0.95rem);
+      letter-spacing: 0.35em;
+      color: var(--ink-muted);
+      text-transform: none;
+      margin-bottom: 8px;
+    }
+
+    .brand strong {
+      color: var(--rose);
+      font-weight: 600;
+      letter-spacing: 0.2em;
+    }
+
+    /* ---------- 入口页 ---------- */
+    #view-home {
+      display: none;
+      width: 100%;
+      max-width: 520px;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 18px;
+    }
+
+    #view-home.active {
+      display: flex;
+    }
+
+    .home-card {
+      width: 100%;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(166, 128, 121, 0.2);
+      border-radius: 4px;
+      padding: 32px 26px 36px;
+      position: relative;
+    }
+
+    .home-card::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border: 1px solid rgba(184, 149, 107, 0.18);
+      pointer-events: none;
+      border-radius: 2px;
+    }
+
+    .home-lead {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      text-align: center;
+      color: var(--ink-muted);
+      letter-spacing: 0.28em;
+      margin-bottom: 22px;
+    }
+
+    .btn-mega {
+      width: 100%;
+      font-size: 1.08rem;
+      padding: 20px 22px;
+      letter-spacing: 0.18em;
+    }
+
+    .btn-mega + .btn-mega {
+      margin-top: 14px;
+    }
+
+    .home-tip {
+      margin-top: 6px;
+      font-size: 0.72rem;
+      color: var(--silver);
+      text-align: center;
+      line-height: 1.65;
+      letter-spacing: 0.06em;
+    }
+
+    .link-back {
+      display: block;
+      margin: 20px auto 0;
+      padding: 8px;
+      background: none;
+      border: none;
+      color: var(--ink-muted);
+      font-family: var(--font-ui);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    .link-back:hover {
+      color: var(--rose);
+    }
+
+    /* ---------- 展示端 ---------- */
+    #view-display {
+      display: none;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    #view-display.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .lottery-card {
+      width: 100%;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(166, 128, 121, 0.2);
+      border-radius: 4px;
+      padding: clamp(24px, 4vw, 48px) clamp(20px, 5vw, 56px);
+      position: relative;
+    }
+
+    .lottery-card::before {
+      content: "";
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      border: 1px solid rgba(184, 149, 107, 0.2);
+      pointer-events: none;
+      border-radius: 2px;
+    }
+
+    .slot-window {
+      position: relative;
+      height: clamp(200px, 28vh, 320px);
+      margin: 24px 0 32px;
+      overflow: hidden;
+      mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+      -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+    }
+
+    .slot-strip {
+      will-change: transform;
+      transition: transform 0.08s linear;
+    }
+
+    .slot-item {
+      font-family: var(--font-display);
+      font-size: clamp(1.15rem, 3.2vw, 1.85rem);
+      line-height: 1.45;
+      color: var(--gold);
+      text-align: center;
+      padding: 18px 12px;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(166, 128, 121, 0.08);
+    }
+
+    .slot-item.dim {
+      color: rgba(184, 149, 107, 0.35);
+      font-size: clamp(0.95rem, 2.4vw, 1.25rem);
+    }
+
+    .result-line {
+      font-family: var(--font-display);
+      font-size: clamp(0.8rem, 2vw, 1rem);
+      color: var(--ink-muted);
+      text-align: center;
+      margin-bottom: 12px;
+      letter-spacing: 0.12em;
+    }
+
+    .result-main {
+      font-family: var(--font-display);
+      font-size: clamp(1.35rem, 4vw, 2.25rem);
+      line-height: 1.5;
+      color: var(--ink);
+      text-align: center;
+      min-height: 3.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 0 28px;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    .btn {
+      font-family: var(--font-ui);
+      font-size: 1rem;
+      letter-spacing: 0.12em;
+      padding: 14px 36px;
+      border-radius: 2px;
+      border: 1px solid var(--rose);
+      background: transparent;
+      color: var(--rose);
+      cursor: pointer;
+      transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .btn:hover {
+      background: rgba(166, 128, 121, 0.08);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: var(--rose);
+      color: #FFFCFA;
+      box-shadow: 0 8px 24px rgba(166, 128, 121, 0.28);
+    }
+
+    .btn-primary:hover {
+      background: #957068;
+      color: #FFFCFA;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .hint-sub {
+      margin-top: 20px;
+      font-size: 0.75rem;
+      color: var(--ink-muted);
+      letter-spacing: 0.08em;
+      text-align: center;
+    }
+
+    /* ---------- 操控端 ---------- */
+    #view-control {
+      display: none;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    #view-control.active {
+      display: block;
+    }
+
+    .control-card {
+      background: var(--card);
+      border: 1px solid rgba(166, 128, 121, 0.22);
+      box-shadow: var(--shadow);
+      border-radius: 4px;
+      padding: 36px 28px 40px;
+      position: relative;
+    }
+
+    .control-card::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border: 1px solid rgba(184, 149, 107, 0.18);
+      pointer-events: none;
+      border-radius: 2px;
+    }
+
+    .control-title {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      text-align: center;
+      color: var(--ink);
+      letter-spacing: 0.2em;
+      margin-bottom: 28px;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--ink-muted);
+      margin-bottom: 8px;
+      letter-spacing: 0.06em;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--rose-line);
+      border-radius: 2px;
+      font-size: 1rem;
+      font-family: var(--font-ui);
+      background: #FFFCFA;
+      color: var(--ink);
+    }
+
+    .field input:focus {
+      outline: none;
+      border-color: var(--rose);
+      box-shadow: 0 0 0 3px var(--rose-soft);
+    }
+
+    .err {
+      color: #A65C5C;
+      font-size: 0.8rem;
+      margin-top: 10px;
+      min-height: 1.2em;
+      text-align: center;
+    }
+
+    .next-only {
+      display: none;
+    }
+
+    .next-only.visible {
+      display: block;
+    }
+
+    .btn-block {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .foot-note {
+      margin-top: 28px;
+      font-size: 0.7rem;
+      color: var(--silver);
+      text-align: center;
+      line-height: 1.6;
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-veil" aria-hidden="true"></div>
+  <div class="petal p1" aria-hidden="true"></div>
+  <div class="petal p2" aria-hidden="true"></div>
+  <div class="egret-mark" aria-hidden="true">
+    <svg viewBox="0 0 400 48" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <path stroke="currentColor" stroke-width="1" d="M12 32 Q90 8 180 18 Q260 6 340 20 Q372 14 388 22" />
+      <path stroke="currentColor" stroke-width="0.9" opacity="0.85" d="M28 36 Q110 22 200 28 Q288 20 368 30" />
+    </svg>
+  </div>
+
+  <div class="panel">
+    <p class="brand"><strong>桐花</strong>万里辩论队</p>
+
+    <!-- 入口（互联网打开默认先见此页） -->
+    <div id="view-home">
+      <div class="home-card">
+        <p class="home-lead">请选择</p>
+        <button type="button" class="btn btn-primary btn-mega" id="btn-go-display">大屏抽签</button>
+        <button type="button" class="btn btn-mega" id="btn-go-control">管理员操控</button>
+        <p class="home-tip">连接投影仪的电脑建议开两个标签：一个点「大屏抽签」，一个点「管理员操控」，场次会自动一致。</p>
+      </div>
+    </div>
+
+    <!-- 展示端 -->
+    <div id="view-display">
+      <div class="lottery-card">
+        <p class="result-line">辩题抽签</p>
+        <div class="slot-window" id="slot-window" aria-live="polite">
+          <div class="slot-strip" id="slot-strip"></div>
+        </div>
+        <p class="result-line">本场结果</p>
+        <div class="result-main" id="result-text">—</div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="btn-start">开始抽签</button>
+          <button type="button" class="btn" id="btn-stop" disabled>停止抽签</button>
+        </div>
+        <p class="hint-sub">滚动呈现总题库；停止后仅从当前预设子题库随机产生结果。</p>
+        <button type="button" class="link-back" id="btn-back-from-display">返回入口</button>
+      </div>
+    </div>
+
+    <!-- 操控端 -->
+    <div id="view-control">
+      <div class="control-card">
+        <h1 class="control-title">操控端</h1>
+        <div id="login-box">
+          <div class="field">
+            <label for="pwd">口令</label>
+            <input type="password" id="pwd" autocomplete="off" placeholder="请输入口令" />
+          </div>
+          <p class="err" id="login-err"></p>
+          <button type="button" class="btn btn-primary btn-block" id="btn-login">登录</button>
+        </div>
+        <div class="next-only" id="next-box">
+          <button type="button" class="btn btn-primary btn-block" id="btn-next">下一题</button>
+        </div>
+        <p class="foot-note">「下一题」切换下一组子题库。与「大屏抽签」在同一台电脑的浏览器里各开一个标签，即可自动同步场次。</p>
+        <button type="button" class="link-back" id="btn-back-from-control">返回入口</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      /**
+       * ========== 内置数据（可直接编辑）==========
+       * allTopics：总题库，展示端滚动动画中会出现的全部辩题。
+       * subPools：子题库序列；每场仅从 subPools[currentIndex] 中随机；
+       *          操控端【下一题】将 currentIndex 循环 +1。
+       * 建议：子题库中的字符串尽量与总题库中的条目一致，便于核对。
+       */
+      var LOTTERY_CONFIG = {
+        allTopics: [
+          "「语言通货膨胀」现象的出现，对社会人际关系的发展是好事/坏事",
+          "当代年轻人应该/不应该把「情绪稳定」当作社交美德来追求",
+          "人工智能的普及，对人文教育的发展利大于弊/弊大于利",
+          "社交媒体时代，人们更自由/更不自由",
+          "「内卷」是/不是当代青年无法回避的结构性困境",
+          "网络匿名性有利于/有害于公共讨论的质量",
+          "高校应不应该将辩论纳入通识必修课程",
+          "技术中立是/不是一个伪命题",
+          "当代爱情中，理性应该/不应该高于感性",
+          "短视频的流行，丰富了/消解了大众文化生活",
+          "「躺平」是/不是一种值得尊重的生活态度",
+          "全球化退潮背景下，青年更应坚守本土/拥抱世界",
+          "人工智能生成内容，应当/不应当享有著作权",
+          "舆论审判对司法公正利大于弊/弊大于利",
+          "当代人更需要「被理解」还是「被认同」"
+        ],
+        subPools: [
+          [
+            "「语言通货膨胀」现象的出现，对社会人际关系的发展是好事/坏事",
+            "当代年轻人应该/不应该把「情绪稳定」当作社交美德来追求"
+          ],
+          [
+            "人工智能的普及，对人文教育的发展利大于弊/弊大于利",
+            "社交媒体时代，人们更自由/更不自由"
+          ],
+          [
+            "「内卷」是/不是当代青年无法回避的结构性困境",
+            "网络匿名性有利于/有害于公共讨论的质量"
+          ],
+          [
+            "高校应不应该将辩论纳入通识必修课程",
+            "技术中立是/不是一个伪命题"
+          ],
+          [
+            "当代爱情中，理性应该/不应该高于感性",
+            "短视频的流行，丰富了/消解了大众文化生活"
+          ]
+        ]
+      };
+
+      var ADMIN_PASSWORD = "桐花万里辩论队";
+      var STORAGE_KEY = "tonghua_sub_pool_index";
+      var SESSION_KEY = "tonghua_control_ok";
+
+      var viewHome = document.getElementById("view-home");
+
+      function isEmbedded() {
+        try {
+          return window.self !== window.top;
+        } catch (err) {
+          return true;
+        }
+      }
+
+      function stripModeFromSearch() {
+        var search = window.location.search;
+        if (!search || search.length < 2) return "";
+        var pairs = search.slice(1).split("&").filter(function (p) {
+          return p.indexOf("mode=") !== 0;
+        });
+        if (!pairs.length) return "";
+        return "?" + pairs.join("&");
+      }
+
+      function parseQueryMode() {
+        var search = window.location.search;
+        if (!search || search.length < 2) return null;
+        var list = search.slice(1).split("&");
+        var i;
+        for (i = 0; i < list.length; i++) {
+          var kv = list[i].split("=");
+          var key = decodeURIComponent((kv[0] || "").replace(/\+/g, " "));
+          if (key !== "mode") continue;
+          var raw = decodeURIComponent((kv[1] || "").replace(/\+/g, " "));
+          if (raw === "大屏" || raw === "大屏幕") return "display";
+          if (raw === "管理" || raw === "操控") return "control";
+          var val = String(raw).toLowerCase();
+          if (val === "display" || val === "screen" || val === "d") return "display";
+          if (val === "control" || val === "admin" || val === "c") return "control";
+        }
+        return null;
+      }
+
+      function resolveRoute() {
+        if (isEmbedded()) return "display";
+        var h = window.location.hash || "";
+        if (h === "#control") return "control";
+        if (h === "#display") return "display";
+        var q = parseQueryMode();
+        if (q) return q;
+        return "home";
+      }
+
+      function readSubIndex(len) {
+        var raw = window.localStorage.getItem(STORAGE_KEY);
+        var n = parseInt(raw, 10);
+        if (isNaN(n) || n < 0) n = 0;
+        return n % len;
+      }
+
+      function writeSubIndex(n, len) {
+        var v = n % len;
+        if (v < 0) v += len;
+        window.localStorage.setItem(STORAGE_KEY, String(v));
+      }
+
+      /* ---------- 展示端逻辑 ---------- */
+      var allTopics = LOTTERY_CONFIG.allTopics.slice();
+      var subPools = LOTTERY_CONFIG.subPools.slice();
+
+      if (!allTopics.length) {
+        allTopics = ["（请在 LOTTERY_CONFIG.allTopics 中添加辩题）"];
+      }
+      if (!subPools.length) {
+        subPools = [allTopics.slice()];
+      }
+
+      var viewDisplay = document.getElementById("view-display");
+      var viewControl = document.getElementById("view-control");
+      var slotWindow = document.getElementById("slot-window");
+      var slotStrip = document.getElementById("slot-strip");
+      var resultText = document.getElementById("result-text");
+      var btnStart = document.getElementById("btn-start");
+      var btnStop = document.getElementById("btn-stop");
+
+      var rollingTimer = null;
+      var rolling = false;
+      var itemHeight = 0;
+
+      function buildStrip() {
+        var frag = document.createDocumentFragment();
+        var i;
+        var el;
+        for (i = 0; i < allTopics.length; i++) {
+          el = document.createElement("div");
+          el.className = "slot-item";
+          el.textContent = allTopics[i];
+          frag.appendChild(el);
+        }
+        slotStrip.innerHTML = "";
+        slotStrip.appendChild(frag);
+        /*复制一份用于循环滚动视觉 */
+        for (i = 0; i < allTopics.length; i++) {
+          el = document.createElement("div");
+          el.className = "slot-item dim";
+          el.textContent = allTopics[i];
+          slotStrip.appendChild(el);
+        }
+        window.requestAnimationFrame(function () {
+          var first = slotStrip.querySelector(".slot-item");
+          if (first) itemHeight = first.offsetHeight;
+        });
+      }
+
+      function randomFrom(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+      }
+
+      function shuffleVisualTick() {
+        if (!itemHeight) {
+          var first = slotStrip.querySelector(".slot-item");
+          if (first) itemHeight = first.offsetHeight;
+        }
+        var total = allTopics.length;
+        if (!total || !itemHeight) return;
+        var offset = Math.floor(Math.random() * total) * itemHeight;
+        slotStrip.style.transition = "none";
+        slotStrip.style.transform = "translateY(-" + offset + "px)";
+      }
+
+      function startRolling() {
+        if (rolling) return;
+        rolling = true;
+        resultText.textContent = "抽签中…";
+        btnStart.disabled = true;
+        btnStop.disabled = false;
+        slotStrip.style.opacity = "1";
+        rollingTimer = window.setInterval(shuffleVisualTick, 70);
+      }
+
+      function stopRolling() {
+        if (!rolling) return;
+        rolling = false;
+        if (rollingTimer) {
+          window.clearInterval(rollingTimer);
+          rollingTimer = null;
+        }
+        btnStart.disabled = false;
+        btnStop.disabled = true;
+
+        var len = subPools.length;
+        var idx = readSubIndex(len);
+        var pool = subPools[idx];
+        if (!pool || !pool.length) {
+          resultText.textContent = "当前子题库为空，请在配置中检查 subPools。";
+          slotStrip.style.transition = "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)";
+          slotStrip.style.transform = "translateY(0px)";
+          return;
+        }
+        var pick = randomFrom(pool);
+        resultText.textContent = pick;
+
+        var landIndex = -1;
+        var i;
+        for (i = 0; i < allTopics.length; i++) {
+          if (allTopics[i] === pick) {
+            landIndex = i;
+            break;
+          }
+        }
+
+        window.requestAnimationFrame(function () {
+          if (!itemHeight) {
+            var first = slotStrip.querySelector(".slot-item");
+            if (first) itemHeight = first.offsetHeight;
+          }
+          if (landIndex < 0) {
+            slotStrip.style.transition = "opacity 0.45s ease";
+            slotStrip.style.transform = "translateY(0px)";
+            slotStrip.style.opacity = "0.22";
+            return;
+          }
+          slotStrip.style.opacity = "1";
+          var y = landIndex * itemHeight;
+          slotStrip.style.transition = "transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)";
+          slotStrip.style.transform = "translateY(-" + y + "px)";
+        });
+      }
+
+      function onStorageSync(ev) {
+        if (ev.key === STORAGE_KEY && viewDisplay.className.indexOf("active") !== -1 && !rolling) {
+          /* 同机多标签同步场次；无需额外提示 */
+        }
+      }
+
+      /* ---------- 操控端逻辑 ---------- */
+      var loginBox = document.getElementById("login-box");
+      var nextBox = document.getElementById("next-box");
+      var pwdInput = document.getElementById("pwd");
+      var loginErr = document.getElementById("login-err");
+      var btnLogin = document.getElementById("btn-login");
+      var btnNext = document.getElementById("btn-next");
+
+      function showControlLoggedIn() {
+        loginBox.style.display = "none";
+        nextBox.className = "next-only visible";
+      }
+
+      function resetControlLoginForm() {
+        loginBox.style.display = "";
+        nextBox.className = "next-only";
+        pwdInput.value = "";
+        loginErr.textContent = "";
+      }
+
+      function tryLogin() {
+        loginErr.textContent = "";
+        if (pwdInput.value === ADMIN_PASSWORD) {
+          window.sessionStorage.setItem(SESSION_KEY, "1");
+          showControlLoggedIn();
+        } else {
+          loginErr.textContent = "口令不正确";
+        }
+      }
+
+      function onNextTopic() {
+        var len = subPools.length;
+        var cur = readSubIndex(len);
+        writeSubIndex(cur + 1, len);
+        btnNext.blur();
+      }
+
+      var displayInited = false;
+      var controlInited = false;
+
+      function initDisplay() {
+        buildStrip();
+        if (!displayInited) {
+          displayInited = true;
+          btnStart.addEventListener("click", startRolling);
+          btnStop.addEventListener("click", stopRolling);
+          window.addEventListener("storage", onStorageSync);
+        }
+      }
+
+      function initControl() {
+        if (!controlInited) {
+          controlInited = true;
+          btnLogin.addEventListener("click", tryLogin);
+          pwdInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") tryLogin();
+          });
+          btnNext.addEventListener("click", onNextTopic);
+        }
+        if (window.sessionStorage.getItem(SESSION_KEY) === "1") {
+          showControlLoggedIn();
+        } else {
+          resetControlLoginForm();
+        }
+      }
+
+      function applyRoute() {
+        var mode = resolveRoute();
+        viewHome.className = mode === "home" ? "active" : "";
+        viewDisplay.className = mode === "display" ? "active" : "";
+        viewControl.className = mode === "control" ? "active" : "";
+        if (mode === "display") initDisplay();
+        if (mode === "control") initControl();
+      }
+
+      function goHome() {
+        var url = window.location.pathname + stripModeFromSearch();
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, "", url);
+        }
+        window.location.hash = "";
+        applyRoute();
+      }
+
+      document.getElementById("btn-go-display").addEventListener("click", function () {
+        window.location.hash = "#display";
+      });
+      document.getElementById("btn-go-control").addEventListener("click", function () {
+        window.location.hash = "#control";
+      });
+      document.getElementById("btn-back-from-display").addEventListener("click", goHome);
+      document.getElementById("btn-back-from-control").addEventListener("click", goHome);
+
+      window.addEventListener("hashchange", function () {
+        applyRoute();
+      });
+
+      applyRoute();
+    })();
+  </script>
+</body>
+</html>
